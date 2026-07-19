@@ -65,7 +65,7 @@ export default function CartDrawer({ open, onClose }: Props) {
           <>
             {/* Items list */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ scrollbarWidth: 'thin' }}>
-              {items.map(item => (
+              {items.map((item: any) => (
                 <div key={item.id} className="flex gap-3 bg-warm-50 rounded-2xl p-3 border border-warm-100 hover:border-cafe-200 transition-colors group">
                   {/* Image */}
                   {item.image_url && (

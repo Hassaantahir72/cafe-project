@@ -95,7 +95,7 @@ export default function AuditLogsPage() {
                 ))}</tr>
               )) : logs.length === 0 ? (
                 <tr><td colSpan={6} className="text-center py-12 text-warm-400">No logs found</td></tr>
-              ) : logs.map(log => (
+              ) : logs.map((log: any) => (
                 <tr key={log.id} className={`hover:bg-warm-50 transition-colors ${SECURITY_EVENTS.includes(log.action) ? 'bg-red-50' : ''}`}>
                   <td className="px-4 py-3 text-xs text-warm-400 whitespace-nowrap">
                     {new Date(log.created_at).toLocaleString()}

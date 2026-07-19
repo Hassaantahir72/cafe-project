@@ -82,7 +82,7 @@ export default function ProfilePage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-warm-100 p-1 rounded-xl mb-6">
-        {TABS.map(t => (
+        {TABS.map((t: any) => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${tab===t.key ? 'bg-white text-warm-900 shadow-sm' : 'text-warm-500 hover:text-warm-700'}`}>
             <t.icon className="w-4 h-4" /> {t.label}
@@ -126,7 +126,7 @@ export default function ProfilePage() {
               <p className="font-medium">No orders yet</p>
               <p className="text-sm mt-1">Your order history will appear here</p>
             </div>
-          ) : orders.map(order => (
+          ) : orders.map((order: any) => (
             <div key={order.id} className="card p-5">
               <div className="flex items-start justify-between mb-3">
                 <div>

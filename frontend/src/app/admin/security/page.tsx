@@ -24,7 +24,7 @@ export default function AdminSecurityPage() {
     setRevoking(jti);
     try {
       await adminAPI.revokeSession(jti);
-      setSessions(prev => prev.filter(s => s.token_jti !== jti));
+      setSessions(prev => prev.filter((s: any) => s.token_jti !== jti));
       toast.success('Session revoked');
     } catch { toast.error('Failed to revoke session'); }
     finally { setRevoking(null); }
@@ -40,9 +40,9 @@ export default function AdminSecurityPage() {
   };
 
   const roleGroups = {
-    admin: sessions.filter(s => s.role === 'admin'),
-    staff: sessions.filter(s => s.role === 'staff'),
-    customer: sessions.filter(s => s.role === 'customer'),
+    admin: sessions.filter((s: any) => s.role === 'admin'),
+    staff: sessions.filter((s: any) => s.role === 'staff'),
+    customer: sessions.filter((s: any) => s.role === 'customer'),
   };
 
   return (
@@ -53,7 +53,7 @@ export default function AdminSecurityPage() {
           { label: 'Admin Sessions', count: roleGroups.admin.length, icon: Shield, color: 'text-red-500 bg-red-50' },
           { label: 'Staff Sessions', count: roleGroups.staff.length, icon: Users, color: 'text-blue-500 bg-blue-50' },
           { label: 'Customer Sessions', count: roleGroups.customer.length, icon: Monitor, color: 'text-green-500 bg-green-50' },
-        ].map(s => (
+        ].map((s: any) => (
           <div key={s.label} className="bg-white rounded-xl border border-warm-100 p-5 flex items-center gap-4">
             <div className={`p-3 rounded-xl ${s.color}`}><s.icon className="w-5 h-5" /></div>
             <div><p className="text-2xl font-bold text-warm-900">{s.count}</p><p className="text-sm text-warm-400">{s.label}</p></div>
@@ -81,7 +81,7 @@ export default function AdminSecurityPage() {
             'Bcrypt cost-14 password hashing',
             'Security headers (HSTS, CSP, X-Frame)',
             'Real-time unauthorized access alerts',
-          ].map(item => (
+          ].map((item: any) => (
             <div key={item} className="flex items-center gap-2 text-warm-600">
               <div className="w-1.5 h-1.5 bg-green-400 rounded-full shrink-0" />
               {item}
@@ -113,7 +113,7 @@ export default function AdminSecurityPage() {
                 <tr key={i} className="animate-pulse">{Array.from({length:7}).map((_,j) => <td key={j} className="px-4 py-3"><div className="h-4 bg-warm-100 rounded"/></td>)}</tr>
               )) : sessions.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-12 text-warm-400">No active sessions</td></tr>
-              ) : sessions.map(s => (
+              ) : sessions.map((s: any) => (
                 <tr key={s.id} className="hover:bg-warm-50 transition-colors">
                   <td className="px-4 py-3">
                     <p className="font-medium text-warm-800 text-sm">{s.user_name}</p>

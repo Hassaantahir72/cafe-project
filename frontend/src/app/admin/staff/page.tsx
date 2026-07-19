@@ -34,7 +34,7 @@ export default function AdminStaffPage() {
     if (!confirm(`Remove ${name} from staff?`)) return;
     try {
       await adminAPI.deleteStaff(id);
-      setStaff(prev => prev.filter(s => s.id !== id));
+      setStaff(prev => prev.filter((s: any) => s.id !== id));
       toast.success('Staff member removed');
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed'); }
   };
@@ -57,7 +57,7 @@ export default function AdminStaffPage() {
           <tbody className="divide-y divide-warm-50">
             {loading ? Array.from({length: 3}).map((_, i) => (
               <tr key={i} className="animate-pulse">{Array.from({length: 6}).map((_,j) => <td key={j} className="px-4 py-4"><div className="h-4 bg-warm-100 rounded"/></td>)}</tr>
-            )) : staff.map(s => (
+            )) : staff.map((s: any) => (
               <tr key={s.id} className="hover:bg-warm-50">
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-3">

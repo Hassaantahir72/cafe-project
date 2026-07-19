@@ -49,7 +49,7 @@ export default function AdminReservationsPage() {
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input max-w-[180px] text-sm py-2" />
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setFilter('')} className={`px-4 py-2 rounded-xl text-sm font-medium ${!filter ? 'bg-cafe-500 text-white' : 'bg-white border border-warm-200 text-warm-600'}`}>All</button>
-          {STATUSES.map(s => (
+          {STATUSES.map((s: any) => (
             <button key={s} onClick={() => setFilter(s)} className={`px-4 py-2 rounded-xl text-sm font-medium capitalize ${filter===s ? 'bg-cafe-500 text-white' : 'bg-white border border-warm-200 text-warm-600'}`}>{s.replace('_',' ')}</button>
           ))}
         </div>
@@ -77,7 +77,7 @@ export default function AdminReservationsPage() {
                 ))
               ) : reservations.length === 0 ? (
                 <tr><td colSpan={9} className="text-center py-12 text-warm-400">No reservations found</td></tr>
-              ) : reservations.map(res => (
+              ) : reservations.map((res: any) => (
                 <tr key={res.id} className="hover:bg-warm-50 transition-colors">
                   <td className="px-4 py-4 font-mono text-xs font-bold text-cafe-600">{res.confirmation_code}</td>
                   <td className="px-4 py-4 text-sm font-medium text-warm-800">{res.customer_name}</td>
@@ -93,7 +93,7 @@ export default function AdminReservationsPage() {
                     <select value={res.status} onChange={e => updateStatus(res.id, e.target.value)}
                       disabled={updating === res.id}
                       className="text-xs border border-warm-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-cafe-300 disabled:opacity-50 bg-white">
-                      {STATUSES.map(s => <option key={s} value={s} className="capitalize">{s.replace('_',' ')}</option>)}
+                      {STATUSES.map((s: any) => <option key={s} value={s} className="capitalize">{s.replace('_',' ')}</option>)}
                     </select>
                   </td>
                 </tr>

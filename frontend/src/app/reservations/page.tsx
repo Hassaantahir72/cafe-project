@@ -132,7 +132,7 @@ export default function ReservationsPage() {
               <label className="label flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Time</label>
               <select value={form.reservation_time} onChange={e => set('reservation_time', e.target.value)} className="input" required>
                 <option value="">Select time</option>
-                {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                {TIME_SLOTS.map((t: any) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>

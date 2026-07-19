@@ -46,7 +46,7 @@ function MenuContent() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = items.filter(item => {
+  const filtered = items.filter((item: any) => {
     const matchCat    = activeCategory === 'all' || item.category_slug === activeCategory;
     const matchSearch = !search || item.name.toLowerCase().includes(search.toLowerCase()) || item.description?.toLowerCase().includes(search.toLowerCase());
     const matchVeg    = !vegOnly || item.is_vegetarian;
@@ -55,9 +55,9 @@ function MenuContent() {
 
   // Group by category for display
   const grouped = activeCategory === 'all'
-    ? categories.map(cat => ({
+    ? categories.map((cat: any) => ({
         ...cat,
-        items: filtered.filter(i => i.category_slug === cat.slug),
+        items: filtered.filter((i: any) => i.category_slug === cat.slug),
       })).filter(g => g.items.length > 0)
     : [{ name: categories.find(c => c.slug === activeCategory)?.name || '', slug: activeCategory, items: filtered }];
 
@@ -120,7 +120,7 @@ function MenuContent() {
                 ${activeCategory === 'all' ? 'bg-cafe-500 text-white shadow-md shadow-cafe-500/25' : 'bg-warm-100 text-warm-600 hover:bg-warm-200'}`}>
               All
             </button>
-            {categories.map(cat => (
+            {categories.map((cat: any) => (
               <button key={cat.id} onClick={() => setActiveCategory(cat.slug)}
                 className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all
                   ${activeCategory === cat.slug ? 'bg-cafe-500 text-white shadow-md shadow-cafe-500/25' : 'bg-warm-100 text-warm-600 hover:bg-warm-200'}`}>
@@ -162,7 +162,7 @@ function MenuContent() {
         )}
 
         {/* Grouped sections */}
-        {!loading && filtered.length > 0 && grouped.map(group => (
+        {!loading && filtered.length > 0 && grouped.map((group: any) => (
           <div key={group.slug} className="mb-12">
             {/* Section header — only show when viewing all */}
             {activeCategory === 'all' && (

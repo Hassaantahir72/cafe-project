@@ -226,7 +226,7 @@ export default function CheckoutPage() {
               <div className="bg-white rounded-2xl border border-warm-100 p-6 space-y-4">
                 <h2 className="font-display font-bold text-warm-900 text-lg">Order Type</h2>
                 <div className="grid grid-cols-3 gap-3">
-                  {ORDER_TYPES.map(t => {
+                  {ORDER_TYPES.map((t: any) => {
                     const Icon = t.icon;
                     const active = form.type === t.value;
                     return (
@@ -260,7 +260,7 @@ export default function CheckoutPage() {
                     { value: 'cash',          label: 'Cash',          icon: <Banknote className="w-5 h-5"/>   },
                     { value: 'card',          label: 'Card',          icon: <CreditCard className="w-5 h-5"/> },
                     { value: 'bank_transfer', label: 'Bank Transfer', icon: <Building2 className="w-5 h-5"/> },
-                  ].map(p => {
+                  ].map((p: any) => {
                     const active = form.payment_method === p.value;
                     return (
                       <button type="button" key={p.value} onClick={() => set('payment_method', p.value)}
@@ -511,7 +511,7 @@ export default function CheckoutPage() {
 
                 {/* Items */}
                 <div className="divide-y divide-warm-50 max-h-72 overflow-y-auto">
-                  {items.map(item => (
+                  {items.map((item: any) => (
                     <div key={item.id} className="flex gap-3 p-4 hover:bg-warm-50 group transition-colors">
                       {item.image_url && (
                         <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-warm-100">

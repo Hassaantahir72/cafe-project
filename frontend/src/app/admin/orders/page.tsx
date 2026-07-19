@@ -60,7 +60,7 @@ export default function AdminOrdersPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setFilter('')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${!filter ? 'bg-cafe-500 text-white' : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50'}`}>All</button>
-          {STATUSES.map(s => (
+          {STATUSES.map((s: any) => (
             <button key={s} onClick={() => setFilter(s)} className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-all ${filter===s ? 'bg-cafe-500 text-white' : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50'}`}>{s}</button>
           ))}
         </div>
@@ -88,7 +88,7 @@ export default function AdminOrdersPage() {
                 ))
               ) : orders.length === 0 ? (
                 <tr><td colSpan={8} className="text-center py-12 text-warm-400">No orders found</td></tr>
-              ) : orders.map(order => (
+              ) : orders.map((order: any) => (
                 <tr key={order.id} className="hover:bg-warm-50 transition-colors">
                   <td className="px-4 py-4 font-medium text-warm-900 text-sm">{order.order_number}</td>
                   <td className="px-4 py-4 text-sm text-warm-700">{order.customer_name || 'Guest'}<br/><span className="text-xs text-warm-400">{order.customer_email}</span></td>
@@ -105,7 +105,7 @@ export default function AdminOrdersPage() {
                     <select value={order.status} onChange={e => updateStatus(order.id, e.target.value)}
                       disabled={updating === order.id || order.status === 'delivered' || order.status === 'cancelled'}
                       className="text-xs border border-warm-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-cafe-300 disabled:opacity-50 bg-white">
-                      {STATUSES.map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+                      {STATUSES.map((s: any) => <option key={s} value={s} className="capitalize">{s}</option>)}
                     </select>
                   </td>
                 </tr>

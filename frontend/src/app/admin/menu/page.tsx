@@ -55,7 +55,7 @@ export default function AdminMenuPage() {
     if (!confirm(`Delete "${name}"?`)) return;
     try {
       await menuAPI.deleteItem(id);
-      setItems(prev => prev.filter(i => i.id !== id));
+      setItems(prev => prev.filter((i: any) => i.id !== id));
       toast.success('Item deleted');
     } catch { toast.error('Delete failed'); }
   };
@@ -74,7 +74,7 @@ export default function AdminMenuPage() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? Array.from({length: 6}).map((_, i) => (
           <div key={i} className="bg-white rounded-xl border border-warm-100 animate-pulse"><div className="h-36 bg-warm-100"/><div className="p-4 space-y-2"><div className="h-4 bg-warm-100 rounded w-3/4"/><div className="h-3 bg-warm-100 rounded w-1/2"/></div></div>
-        )) : items.map(item => (
+        )) : items.map((item: any) => (
           <div key={item.id} className="bg-white rounded-xl border border-warm-100 overflow-hidden">
             <div className="h-36 bg-warm-100 relative">
               {item.image_url && <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />}
