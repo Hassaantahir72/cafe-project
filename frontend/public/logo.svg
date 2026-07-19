@@ -1,0 +1,50 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .logo-bg { fill: #1a1410; }
+    .ring-outer { fill: none; stroke: #c4843a; stroke-width: 2.5; }
+    .ring-inner { fill: none; stroke: #c4843a; stroke-width: 0.8; stroke-dasharray: 4 3; }
+    .cup-body { fill: #c4843a; }
+    .cup-handle { fill: none; stroke: #c4843a; stroke-width: 3; stroke-linecap: round; }
+    .saucer { fill: #a86d2a; }
+    .steam { fill: none; stroke: #e8c88a; stroke-width: 2; stroke-linecap: round; opacity: 0.85; }
+    .wheat { fill: none; stroke: #c4843a; stroke-width: 1.5; stroke-linecap: round; }
+    .wheat-grain { fill: #c4843a; }
+    .brand-name { font-family: Georgia, serif; font-size: 13px; font-weight: 700; fill: #f5e6c8; letter-spacing: 1.5px; }
+    .brand-sub { font-family: Georgia, serif; font-size: 6px; fill: #c4843a; letter-spacing: 3px; }
+    .dot { fill: #c4843a; }
+    .star { fill: #c4843a; }
+  </style>
+  <g transform="translate(100,100)">
+    <circle cx="0" cy="0" r="96" class="logo-bg"/>
+    <circle cx="0" cy="0" r="96" class="ring-outer"/>
+    <circle cx="0" cy="0" r="87" class="ring-inner"/>
+    <circle cx="0" cy="-96" r="2.5" class="dot"/>
+    <circle cx="0" cy="96" r="2.5" class="dot"/>
+    <circle cx="-96" cy="0" r="2.5" class="dot"/>
+    <circle cx="96" cy="0" r="2.5" class="dot"/>
+    <g transform="translate(-46, 8)">
+      <line x1="0" y1="22" x2="0" y2="-22" class="wheat"/>
+      <ellipse cx="-4" cy="10" rx="4" ry="7" class="wheat-grain" transform="rotate(-30,-4,10)"/>
+      <ellipse cx="4" cy="2" rx="4" ry="7" class="wheat-grain" transform="rotate(30,4,2)"/>
+      <ellipse cx="-4" cy="-6" rx="4" ry="7" class="wheat-grain" transform="rotate(-25,-4,-6)"/>
+      <ellipse cx="4" cy="-14" rx="3.5" ry="6" class="wheat-grain" transform="rotate(25,4,-14)"/>
+    </g>
+    <g transform="translate(46, 8) scale(-1,1)">
+      <line x1="0" y1="22" x2="0" y2="-22" class="wheat"/>
+      <ellipse cx="-4" cy="10" rx="4" ry="7" class="wheat-grain" transform="rotate(-30,-4,10)"/>
+      <ellipse cx="4" cy="2" rx="4" ry="7" class="wheat-grain" transform="rotate(30,4,2)"/>
+      <ellipse cx="-4" cy="-6" rx="4" ry="7" class="wheat-grain" transform="rotate(-25,-4,-6)"/>
+      <ellipse cx="4" cy="-14" rx="3.5" ry="6" class="wheat-grain" transform="rotate(25,4,-14)"/>
+    </g>
+    <ellipse cx="0" cy="22" rx="28" ry="5" class="saucer"/>
+    <path d="M-19,-8 Q-21,22 -13,22 Q0,26 13,22 Q21,22 19,-8 Z" class="cup-body"/>
+    <ellipse cx="0" cy="-8" rx="19" ry="4" class="saucer"/>
+    <path d="M19,2 Q36,2 36,10 Q36,20 19,18" class="cup-handle"/>
+    <path d="M-9,-12 Q-12,-20 -9,-28 Q-6,-36 -9,-42" class="steam"/>
+    <path d="M0,-13 Q3,-22 0,-32 Q-3,-42 0,-50" class="steam" stroke-width="2.2"/>
+    <path d="M9,-12 Q12,-20 9,-28 Q6,-36 9,-40" class="steam"/>
+    <text x="0" y="52" text-anchor="middle" class="brand-name">BREWED AWAKENING</text>
+    <text x="0" y="63" text-anchor="middle" class="brand-sub">CAFÉ &amp; COFFEE HOUSE</text>
+    <polygon points="0,-80 1.5,-77 4.5,-77 2.2,-75 3,-72 0,-74 -3,-72 -2.2,-75 -4.5,-77 -1.5,-77" class="star"/>
+  </g>
+</svg>
