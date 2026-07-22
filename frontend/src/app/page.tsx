@@ -1,585 +1,405 @@
 'use client';
-import { useState, useRef } from 'react';
-import { useCartStore, useAuthStore } from '@/lib/store';
-import { ordersAPI } from '@/lib/api';
-import {
-  ShoppingBag, CheckCircle, ArrowLeft, Utensils, Package, Truck,
-  Minus, Plus, Trash2, CreditCard, Banknote, Building2,
-  Upload, X, Eye, EyeOff, Lock, CheckCheck, Image as ImageIcon
-} from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { menuAPI } from '@/lib/api';
+import { useCartStore } from '@/lib/store';
+import { ArrowRight, Star, Clock, Leaf, Plus, Coffee, ChevronDown, MapPin, Wifi, Music, Truck } from 'lucide-react';
+import CafeStatus from '@/components/ui/CafeStatus';
 
-const ORDER_TYPES = [
-  { value: 'dine_in',  label: 'Dine In',  icon: Utensils, desc: 'Eat at the cafe' },
-  { value: 'takeaway', label: 'Takeaway',  icon: Package,  desc: 'Pick up your order' },
-  { value: 'delivery', label: 'Delivery',  icon: Truck,    desc: 'Delivered to you' },
-];
 
-// Bank account details (edit these to your real account)
-const BANK_DETAILS = {
-  bankName:      'Habib Bank Limited (HBL)',
-  accountTitle:  'Brewed Awakening Cafe',
-  accountNumber: '1234-5678-9012-3456',
-  iban:          'PK36HABB0000001234567890',
-  branchCode:    '0123',
-  swift:         'HABBPKKA',
+const FALLBACK_IMAGES: Record<string, string> = {
+  'hot-drinks':  'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=600&q=80',
+  'cold-drinks': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=600&q=80',
+  'breakfast':   'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=600&q=80',
+  'sandwiches':  'https://images.unsplash.com/photo-1528736235302-52922df5c122?w=600&q=80',
+  'pastries':    'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&q=80',
+  'salads':      'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80',
 };
 
-// Card input formatter
-function formatCardNumber(v: string) {
-  return v.replace(/\D/g,'').slice(0,16).replace(/(.{4})/g,'$1 ').trim();
-}
-function formatExpiry(v: string) {
-  const digits = v.replace(/\D/g,'').slice(0,4);
-  if (digits.length >= 3) return digits.slice(0,2) + '/' + digits.slice(2);
-  return digits;
+function imgWithFallback(src: string | null, slug: string) {
+  return src || FALLBACK_IMAGES[slug] || 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&q=80';
 }
 
-export default function CheckoutPage() {
-  const { items, total, clearCart, updateQty, removeItem } = useCartStore();
-  const { user } = useAuthStore();
-  const [loading, setLoading]   = useState(false);
-  const [order, setOrder]       = useState<any>(null);
-  const [showCvv, setShowCvv]   = useState(false);
-  const [screenshot, setScreenshot] = useState<File | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export default function HomePage() {
+  const [featured, setFeatured]   = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [allItems, setAllItems]   = useState<any[]>([]);
+  const [loaded, setLoaded]       = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const addItem = useCartStore(s => s.addItem);
 
-  const [form, setForm] = useState({
-    customer_name:        user?.name  || '',
-    customer_email:       user?.email || '',
-    customer_phone:       user?.phone || '',
-    type:                 'dine_in',
-    delivery_address:     '',
-    special_instructions: '',
-    payment_method:       'cash',
-    // Card fields
-    card_number:    '',
-    card_name:      '',
-    card_expiry:    '',
-    card_cvv:       '',
-    // Bank transfer fields
-    transfer_reference: '',
-  });
+  useEffect(() => {
+    setLoaded(true);
+    menuAPI.getItems({ featured: 'true' }).then(r => setFeatured(r.data.slice(0, 6))).catch(() => {});
+    menuAPI.getCategories().then(r => setCategories(r.data)).catch(() => {});
+    menuAPI.getItems().then(r => setAllItems(r.data)).catch(() => {});
+  }, []);
 
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-  const tax        = total() * 0.08;
-  const grandTotal = total() + tax;
+  // Parallax
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    const handler = () => el.style.setProperty('--py', `${window.scrollY * 0.35}px`);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
 
-  const handleScreenshot = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error('File too large. Max 5MB.'); return; }
-    if (!file.type.startsWith('image/')) { toast.error('Please upload an image file.'); return; }
-    setScreenshot(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setScreenshotPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
+  const handleAdd = (item: any) => {
+    addItem({ id: item.id, name: item.name, price: parseFloat(item.price), image_url: item.image_url });
+    // inline toast-like feedback via button pulse — no import needed
   };
 
-  const removeScreenshot = () => {
-    setScreenshot(null);
-    setScreenshotPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  // Pick one representative image per category
+  const getCatImage = (slug: string) => {
+    const item = allItems.find(i => i.category_slug === slug && i.image_url);
+    return item?.image_url || null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!items.length) return toast.error('Your cart is empty');
-    if (!form.customer_name || !form.customer_email || !form.customer_phone)
-      return toast.error('Please fill in all contact details');
-    if (form.type === 'delivery' && !form.delivery_address)
-      return toast.error('Please enter a delivery address');
-    if (form.payment_method === 'card') {
-      if (!form.card_number || form.card_number.replace(/\s/g,'').length < 16)
-        return toast.error('Please enter a valid card number');
-      if (!form.card_name) return toast.error('Please enter the cardholder name');
-      if (!form.card_expiry || form.card_expiry.length < 5)
-        return toast.error('Please enter card expiry date');
-      if (!form.card_cvv || form.card_cvv.length < 3)
-        return toast.error('Please enter CVV');
-    }
-    if (form.payment_method === 'bank_transfer' && !form.transfer_reference)
-      return toast.error('Please enter your transfer reference number');
-
-    setLoading(true);
-    try {
-      const { data } = await ordersAPI.place({
-        customer_name:        form.customer_name,
-        customer_email:       form.customer_email,
-        customer_phone:       form.customer_phone,
-        type:                 form.type,
-        delivery_address:     form.delivery_address,
-        special_instructions: form.special_instructions,
-        payment_method:       form.payment_method,
-        items: items.map(i => ({ menu_item_id: i.id, quantity: i.quantity, notes: i.notes })),
-      });
-      setOrder(data.order);
-      clearCart();
-      toast.success('Order placed successfully!');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to place order. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const CATEGORY_EMOJI: Record<string,string> = {
+    'hot-drinks':'☕','cold-drinks':'🧊','breakfast':'🌅','sandwiches':'🥪','pastries':'🥐','salads':'🥗',
   };
 
-  // ── Success screen ─────────────────────────────────────
-  if (order) {
-    return (
-      <div className="min-h-screen bg-warm-50 flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-md text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-green-500" />
-          </div>
-          <h1 className="font-display text-3xl font-bold text-warm-900 mb-2">Order Placed!</h1>
-          <p className="text-warm-400 mb-8">Your order is being prepared with love ☕</p>
-          <div className="bg-white rounded-2xl border border-warm-100 p-6 text-left mb-6 space-y-3">
-            <div className="text-center pb-4 border-b border-warm-100">
-              <p className="text-xs text-warm-400 uppercase tracking-widest mb-1">Order Number</p>
-              <p className="font-display text-2xl font-bold text-cafe-600">{order.order_number}</p>
+  // Story images — pick 4 diverse items that actually have images
+  const storyItems = allItems.filter((i: any) => i.image_url).slice(0, 4);
+
+  const testimonials = [
+    { name:'Sarah M.', text:'Best flat white in the city. The atmosphere is pure magic!', rating:5, avatar:'S' },
+    { name:'James K.', text:'I come here every morning. The cinnamon rolls are life-changing.', rating:5, avatar:'J' },
+    { name:'Priya R.', text:'The acai bowl and matcha latte combo is absolutely perfect.', rating:5, avatar:'P' },
+  ];
+
+  const AMENITIES = [
+    { icon: <Wifi className="w-7 h-7 text-cafe-500"/>,   title:'Free WiFi',      sub:'High-speed throughout' },
+    { icon: <span className="text-3xl">🐾</span>,        title:'Pet Friendly',   sub:'Outdoor patio available' },
+    { icon: <Music className="w-7 h-7 text-cafe-500"/>,  title:'Live Music',     sub:'Every Friday evening' },
+    { icon: <Truck className="w-7 h-7 text-cafe-500"/>,  title:'Delivery',       sub:'Within 5km radius' },
+  ];
+
+  return (
+    <div className="overflow-x-hidden">
+
+      {/* ── HERO ─────────────────────────────────────────── */}
+      <section ref={heroRef} className="relative min-h-screen flex items-center hero-gradient overflow-hidden">
+        {/* BG blobs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-cafe-500/10 rounded-full blur-3xl" style={{transform:'translateY(var(--py,0))'}} />
+          <div className="absolute bottom-0 -left-20 w-80 h-80 bg-cafe-400/8 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 py-24 grid lg:grid-cols-2 gap-16 items-center relative z-10 w-full">
+          {/* Left */}
+          <div className={`transition-all duration-1000 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <div className="mb-8">
+              <CafeStatus variant="badge" className="bg-cafe-500/15 border border-cafe-500/30 backdrop-blur-sm rounded-full px-5 py-2 text-cafe-300" />
             </div>
-            {[
-              ['Type',    order.type?.replace('_',' ')],
-              ['Payment', order.payment_method?.replace('_',' ')],
-              ['Status',  order.status],
-              ['Total',   `$${parseFloat(order.total).toFixed(2)}`],
-            ].map(([k,v]) => (
-              <div key={k} className="flex justify-between text-sm">
-                <span className="text-warm-400">{k}</span>
-                <span className="font-semibold text-warm-800 capitalize">{v}</span>
+            <h1 className="font-display text-6xl lg:text-7xl font-bold text-white leading-[1.05] mb-6">
+              Where Every<br />
+              <span className="text-gradient">Cup Tells</span><br />
+              a Story.
+            </h1>
+            <p className="text-warm-300 text-lg font-light leading-relaxed mb-10 max-w-md">
+              Specialty coffee sourced from single-origin farms, artisan pastries baked at dawn, and a space that feels like home.
+            </p>
+            <div className="flex flex-wrap gap-4 mb-12">
+              <Link href="/menu" className="btn-primary text-base py-4 px-8 flex items-center gap-2 group">
+                Explore Menu <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>
+              </Link>
+              <Link href="/reservations" className="glass border border-white/20 text-white hover:bg-white/10 font-semibold py-4 px-8 rounded-xl transition-all">
+                Reserve Table
+              </Link>
+            </div>
+            <div className="flex gap-8">
+              {[['2k+','Happy Customers'],['22','Menu Items'],['4.9★','Average Rating']].map(([v,l]) => (
+                <div key={l}>
+                  <p className="text-2xl font-display font-bold text-white">{v}</p>
+                  <p className="text-warm-400 text-xs mt-0.5">{l}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right — image mosaic */}
+          <div className={`hidden lg:grid grid-cols-2 gap-3 transition-all duration-1000 delay-300 ${loaded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
+            {featured.slice(0,4).map((item, i) => (
+              <div key={item.id}
+                className={`relative rounded-2xl overflow-hidden group cursor-pointer
+                  ${i === 0 ? 'row-span-2' : 'h-40'}`}>
+                {item.image_url
+                  ? <img src={imgWithFallback(item.image_url, item.category_slug)} alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e)=>{const t=e.target as HTMLImageElement;const fb=FALLBACK_IMAGES[item.category_slug];if(fb&&t.src!==fb)t.src=fb;}} />
+                  : <div className="w-full h-full bg-warm-800 flex items-center justify-center text-4xl">{CATEGORY_EMOJI[item.category_slug]||'☕'}</div>
+                }
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                  <div>
+                    <p className="text-white text-sm font-semibold">{item.name}</p>
+                    <p className="text-cafe-300 text-xs">${parseFloat(item.price).toFixed(2)}</p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
-          <div className="flex gap-3">
-            <Link href="/order-tracking" className="flex-1 btn-primary text-center py-3.5">Track Order</Link>
-            <Link href="/menu" className="flex-1 btn-outline text-center py-3.5">Order More</Link>
-          </div>
         </div>
-      </div>
-    );
-  }
 
-  // ── Empty cart ─────────────────────────────────────────
-  if (!items.length) {
-    return (
-      <div className="min-h-screen bg-warm-50 flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="w-20 h-20 bg-warm-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShoppingBag className="w-10 h-10 text-warm-300" />
-          </div>
-          <h1 className="font-display text-2xl font-bold text-warm-900 mb-2">Your cart is empty</h1>
-          <p className="text-warm-400 mb-6">Add some items from our menu first</p>
-          <Link href="/menu" className="btn-primary inline-block px-8 py-3">Browse Menu</Link>
+        {/* Scroll cue */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-warm-400 animate-bounce">
+          <span className="text-xs tracking-widest uppercase">Scroll</span>
+          <ChevronDown className="w-4 h-4"/>
         </div>
-      </div>
-    );
-  }
+      </section>
 
-  return (
-    <div className="min-h-screen bg-warm-50">
-      {/* Header */}
-      <div className="bg-white border-b border-warm-100 sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-3">
-          <Link href="/menu" className="p-2 rounded-xl hover:bg-warm-100 transition-colors text-warm-500">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="font-display font-bold text-warm-900 text-xl">Checkout</h1>
-          <div className="ml-auto flex items-center gap-1.5 text-xs text-warm-400">
-            <Lock className="w-3.5 h-3.5 text-green-500" />
-            <span>Secure checkout</span>
-          </div>
+      {/* ── MARQUEE ──────────────────────────────────────── */}
+      <div className="bg-cafe-500 py-3 overflow-hidden">
+        <div className="flex animate-marquee whitespace-nowrap">
+          {Array(2).fill([
+            '☕ Specialty Coffee','🫘 Single-Origin Beans','🥐 Fresh Pastries',
+            '🍵 Matcha Lattes','🌿 Vegan Options','🎵 Live Music Fridays',
+            '📶 Free WiFi','🐾 Pet Friendly Patio',
+          ]).flat().map((item, i) => (
+            <span key={i} className="text-white font-medium text-sm px-8 border-r border-white/20 last:border-0">
+              {item}
+            </span>
+          ))}
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-5 gap-8">
+      {/* ── CATEGORIES ───────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 py-24">
+        <div className="text-center mb-14">
+          <p className="text-cafe-500 font-semibold uppercase tracking-[4px] text-xs mb-4">Explore</p>
+          <h2 className="section-title">Our Menu</h2>
+          <p className="section-sub">Something for every moment of your day</p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {categories.length === 0
+            ? Array.from({length:6}).map((_,i) => (
+                <div key={i} className="aspect-square rounded-2xl bg-warm-100 animate-pulse"/>
+              ))
+            : categories.map((cat, i) => {
+                const img = getCatImage(cat.slug);
+                return (
+                  <Link key={cat.id} href={`/menu?category=${cat.slug}`}
+                    className="group relative rounded-2xl overflow-hidden cursor-pointer aspect-square flex flex-col items-center justify-end p-4 bg-warm-900 hover:scale-[1.03] transition-transform duration-300">
+                    {img
+                      ? <img src={img} alt={cat.name}
+                      className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-all duration-500"
+                      onError={(e)=>{const t=e.target as HTMLImageElement;const fb=FALLBACK_IMAGES[cat.slug];if(fb&&t.src!==fb)t.src=fb;else t.style.display='none';}} />
+                      : <div className="absolute inset-0 flex items-center justify-center text-5xl bg-warm-800">{CATEGORY_EMOJI[cat.slug]||'🍽️'}</div>
+                    }
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"/>
+                    <div className="relative z-10 text-center">
+                      <p className="text-white font-semibold text-sm leading-tight">{cat.name}</p>
+                      <p className="text-cafe-300 text-xs mt-0.5">{allItems.filter(i=>i.category_slug===cat.slug).length} items</p>
+                    </div>
+                  </Link>
+                );
+              })
+          }
+        </div>
+      </section>
 
-            {/* ── Left: Form ─────────────────────────── */}
-            <div className="lg:col-span-3 space-y-5">
+      {/* ── FEATURED / MENU HIGHLIGHTS ───────────────────── */}
+      <section className="bg-warm-900 py-24 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-5"
+          style={{backgroundImage:'radial-gradient(circle at 2px 2px, #c4843a 1px, transparent 0)',backgroundSize:'32px 32px'}}/>
+        <div className="max-w-7xl mx-auto px-6 relative">
+          <div className="text-center mb-14">
+            <p className="text-cafe-400 font-semibold uppercase tracking-[4px] text-xs mb-4">Chef's Pick</p>
+            <h2 className="section-title text-white">Menu Highlights</h2>
+            <p className="text-warm-400 text-lg font-light mt-3">Crafted with love, served with pride</p>
+          </div>
 
-              {/* Contact */}
-              <div className="bg-white rounded-2xl border border-warm-100 p-6 space-y-4">
-                <h2 className="font-display font-bold text-warm-900 text-lg">Contact Details</h2>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Full Name *</label>
-                    <input value={form.customer_name} onChange={e => set('customer_name', e.target.value)}
-                      className="input" placeholder="Your full name" required />
-                  </div>
-                  <div>
-                    <label className="label">Phone *</label>
-                    <input value={form.customer_phone} onChange={e => set('customer_phone', e.target.value)}
-                      className="input" placeholder="+92 300 1234567" required />
+          {/* Loading skeleton */}
+          {featured.length === 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({length:6}).map((_,i) => (
+                <div key={i} className="bg-warm-800 rounded-2xl overflow-hidden">
+                  <div className="h-52 bg-warm-700 animate-pulse"/>
+                  <div className="p-5 space-y-3">
+                    <div className="h-4 bg-warm-700 rounded w-3/4 animate-pulse"/>
+                    <div className="h-3 bg-warm-700 rounded animate-pulse"/>
                   </div>
                 </div>
-                <div>
-                  <label className="label">Email *</label>
-                  <input type="email" value={form.customer_email} onChange={e => set('customer_email', e.target.value)}
-                    className="input" placeholder="you@example.com" required />
-                </div>
-              </div>
-
-              {/* Order type */}
-              <div className="bg-white rounded-2xl border border-warm-100 p-6 space-y-4">
-                <h2 className="font-display font-bold text-warm-900 text-lg">Order Type</h2>
-                <div className="grid grid-cols-3 gap-3">
-                  {ORDER_TYPES.map((t: any) => {
-                    const Icon = t.icon;
-                    const active = form.type === t.value;
-                    return (
-                      <button type="button" key={t.value} onClick={() => set('type', t.value)}
-                        className={`p-4 rounded-xl border-2 text-center transition-all duration-200 ${
-                          active ? 'border-cafe-500 bg-cafe-50' : 'border-warm-200 hover:border-warm-300 bg-white'}`}>
-                        <Icon className={`w-5 h-5 mx-auto mb-1.5 ${active ? 'text-cafe-500' : 'text-warm-400'}`} />
-                        <p className={`text-sm font-semibold ${active ? 'text-cafe-700' : 'text-warm-600'}`}>{t.label}</p>
-                        <p className="text-xs text-warm-400 mt-0.5 hidden sm:block">{t.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-                {form.type === 'delivery' && (
-                  <div>
-                    <label className="label">Delivery Address *</label>
-                    <textarea value={form.delivery_address} onChange={e => set('delivery_address', e.target.value)}
-                      className="input resize-none" rows={2}
-                      placeholder="Street address, area, city..." required />
-                  </div>
-                )}
-              </div>
-
-              {/* ── PAYMENT METHOD ─────────────────────── */}
-              <div className="bg-white rounded-2xl border border-warm-100 p-6 space-y-5">
-                <h2 className="font-display font-bold text-warm-900 text-lg">Payment Method</h2>
-
-                {/* Method selector */}
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: 'cash',          label: 'Cash',          icon: <Banknote className="w-5 h-5"/>   },
-                    { value: 'card',          label: 'Card',          icon: <CreditCard className="w-5 h-5"/> },
-                    { value: 'bank_transfer', label: 'Bank Transfer', icon: <Building2 className="w-5 h-5"/> },
-                  ].map((p: any) => {
-                    const active = form.payment_method === p.value;
-                    return (
-                      <button type="button" key={p.value} onClick={() => set('payment_method', p.value)}
-                        className={`p-3.5 rounded-xl border-2 flex flex-col items-center gap-1.5 transition-all duration-200 ${
-                          active ? 'border-cafe-500 bg-cafe-50' : 'border-warm-200 hover:border-warm-300 bg-white'}`}>
-                        <span className={active ? 'text-cafe-500' : 'text-warm-400'}>{p.icon}</span>
-                        <span className={`text-xs font-semibold ${active ? 'text-cafe-700' : 'text-warm-600'}`}>{p.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* ── CASH ──────────────────────────────── */}
-                {form.payment_method === 'cash' && (
-                  <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
-                    <Banknote className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-green-800 text-sm">Pay with Cash</p>
-                      <p className="text-green-700 text-xs mt-0.5 leading-relaxed">
-                        Pay in cash when your order is ready for pickup or upon delivery. Please have the exact amount ready.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── CARD ──────────────────────────────── */}
-                {form.payment_method === 'card' && (
-                  <div className="space-y-4">
-                    {/* Visual card preview */}
-                    <div className="relative h-44 bg-gradient-to-br from-warm-800 via-warm-900 to-cafe-900 rounded-2xl p-5 overflow-hidden shadow-xl">
-                      {/* Background pattern */}
-                      <div className="absolute inset-0 opacity-10"
-                        style={{backgroundImage:'radial-gradient(circle at 80% 20%, #c4843a 0%, transparent 50%)',}} />
-                      <div className="absolute top-4 right-5">
-                        <div className="flex gap-1">
-                          <div className="w-8 h-8 bg-yellow-400 rounded-full opacity-90" />
-                          <div className="w-8 h-8 bg-orange-500 rounded-full opacity-80 -ml-3" />
-                        </div>
-                      </div>
-                      {/* Chip */}
-                      <div className="w-10 h-7 bg-yellow-300/80 rounded-md mb-4" />
-                      {/* Card number */}
-                      <p className="text-white font-mono text-lg tracking-[4px] mb-3">
-                        {form.card_number
-                          ? form.card_number.padEnd(19, '·').replace(/(.{5})/g, '$1')
-                          : '•••• •••• •••• ••••'}
-                      </p>
-                      <div className="flex justify-between items-end">
-                        <div>
-                          <p className="text-white/50 text-xs uppercase tracking-widest">Card Holder</p>
-                          <p className="text-white font-medium text-sm mt-0.5 uppercase tracking-wide">
-                            {form.card_name || 'YOUR NAME'}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-white/50 text-xs uppercase tracking-widest">Expires</p>
-                          <p className="text-white font-medium text-sm mt-0.5">
-                            {form.card_expiry || 'MM/YY'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card inputs */}
-                    <div>
-                      <label className="label">Card Number *</label>
-                      <div className="relative">
-                        <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-300" />
-                        <input
-                          value={form.card_number}
-                          onChange={e => set('card_number', formatCardNumber(e.target.value))}
-                          className="input pl-10 font-mono tracking-widest"
-                          placeholder="1234 5678 9012 3456"
-                          maxLength={19}
-                          inputMode="numeric"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="label">Cardholder Name *</label>
-                      <input
-                        value={form.card_name}
-                        onChange={e => set('card_name', e.target.value.toUpperCase())}
-                        className="input uppercase tracking-wide"
-                        placeholder="AS ON YOUR CARD"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Expiry Date *</label>
-                        <input
-                          value={form.card_expiry}
-                          onChange={e => set('card_expiry', formatExpiry(e.target.value))}
-                          className="input font-mono"
-                          placeholder="MM/YY"
-                          maxLength={5}
-                          inputMode="numeric"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">CVV *</label>
-                        <div className="relative">
-                          <input
-                            type={showCvv ? 'text' : 'password'}
-                            value={form.card_cvv}
-                            onChange={e => set('card_cvv', e.target.value.replace(/\D/g,'').slice(0,4))}
-                            className="input pr-10 font-mono tracking-widest"
-                            placeholder="•••"
-                            maxLength={4}
-                            inputMode="numeric"
-                          />
-                          <button type="button" onClick={() => setShowCvv(!showCvv)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-300 hover:text-warm-600">
-                            {showCvv ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-warm-400 bg-warm-50 rounded-xl p-3">
-                      <Lock className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                      Your card details are encrypted and secure. We do not store card information.
-                    </div>
-                  </div>
-                )}
-
-                {/* ── BANK TRANSFER ──────────────────────── */}
-                {form.payment_method === 'bank_transfer' && (
-                  <div className="space-y-4">
-                    {/* Bank account details card */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Building2 className="w-5 h-5 text-blue-600" />
-                        <p className="font-bold text-blue-800">Bank Account Details</p>
-                      </div>
-                      <p className="text-xs text-blue-600 mb-3">Transfer the exact amount to the account below, then upload your payment screenshot.</p>
-
-                      {[
-                        ['Bank Name',       BANK_DETAILS.bankName],
-                        ['Account Title',   BANK_DETAILS.accountTitle],
-                        ['Account Number',  BANK_DETAILS.accountNumber],
-                        ['IBAN',            BANK_DETAILS.iban],
-                        ['Branch Code',     BANK_DETAILS.branchCode],
-                        ['SWIFT / BIC',     BANK_DETAILS.swift],
-                      ].map(([label, value]) => (
-                        <div key={label} className="flex justify-between items-center py-2 border-b border-blue-100 last:border-0">
-                          <span className="text-blue-600 text-sm font-medium">{label}</span>
-                          <span className="font-bold text-blue-900 text-sm font-mono">{value}</span>
-                        </div>
-                      ))}
-
-                      {/* Amount to transfer */}
-                      <div className="mt-3 bg-blue-100 rounded-xl p-3 text-center">
-                        <p className="text-xs text-blue-600 mb-1">Amount to Transfer</p>
-                        <p className="font-display text-2xl font-bold text-blue-900">${grandTotal.toFixed(2)}</p>
-                      </div>
-                    </div>
-
-                    {/* Reference number */}
-                    <div>
-                      <label className="label">Transaction Reference / TID Number *</label>
-                      <input
-                        value={form.transfer_reference}
-                        onChange={e => set('transfer_reference', e.target.value)}
-                        className="input font-mono"
-                        placeholder="e.g. TXN123456789"
-                        required={form.payment_method === 'bank_transfer'}
-                      />
-                      <p className="text-xs text-warm-400 mt-1">
-                        Enter the transaction ID or reference number from your bank transfer confirmation.
-                      </p>
-                    </div>
-
-                    {/* Screenshot upload */}
-                    <div>
-                      <label className="label">Payment Screenshot *</label>
-                      {!screenshotPreview ? (
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full border-2 border-dashed border-warm-200 hover:border-cafe-400 rounded-xl p-8 flex flex-col items-center gap-3 transition-colors bg-warm-50 hover:bg-cafe-50 group">
-                          <div className="w-12 h-12 bg-warm-200 group-hover:bg-cafe-100 rounded-full flex items-center justify-center transition-colors">
-                            <Upload className="w-6 h-6 text-warm-400 group-hover:text-cafe-500" />
-                          </div>
-                          <div className="text-center">
-                            <p className="font-semibold text-warm-600 group-hover:text-cafe-600 text-sm">
-                              Click to upload screenshot
-                            </p>
-                            <p className="text-xs text-warm-400 mt-1">PNG, JPG up to 5MB</p>
-                          </div>
-                        </button>
-                      ) : (
-                        <div className="relative rounded-xl overflow-hidden border-2 border-cafe-300">
-                          <img src={screenshotPreview} alt="Payment screenshot"
-                            className="w-full max-h-64 object-contain bg-warm-100" />
-                          <div className="absolute top-2 right-2 flex gap-2">
-                            <button type="button" onClick={() => fileInputRef.current?.click()}
-                              className="p-2 bg-white/90 hover:bg-white rounded-lg shadow text-warm-600 transition-colors">
-                              <ImageIcon className="w-4 h-4" />
-                            </button>
-                            <button type="button" onClick={removeScreenshot}
-                              className="p-2 bg-red-500 hover:bg-red-600 rounded-lg shadow text-white transition-colors">
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="absolute bottom-0 inset-x-0 bg-green-500/90 text-white text-xs py-2 px-3 flex items-center gap-1.5">
-                            <CheckCheck className="w-3.5 h-3.5" /> Screenshot uploaded — {screenshot?.name}
-                          </div>
-                        </div>
-                      )}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleScreenshot}
-                        className="hidden"
-                      />
-                    </div>
-
-                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                      <span className="text-amber-500 text-sm shrink-0 mt-0.5">⚠️</span>
-                      <p className="text-amber-700 text-xs leading-relaxed">
-                        Your order will be confirmed after we verify the payment. This usually takes 5–15 minutes during business hours.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Special instructions */}
-              <div className="bg-white rounded-2xl border border-warm-100 p-6">
-                <label className="label">Special Instructions <span className="text-warm-400 font-normal">(optional)</span></label>
-                <textarea value={form.special_instructions} onChange={e => set('special_instructions', e.target.value)}
-                  className="input resize-none" rows={3}
-                  placeholder="Allergies, special requests, table preferences..." />
-              </div>
+              ))}
             </div>
+          )}
 
-            {/* ── Right: Order Summary ─────────────────── */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl border border-warm-100 overflow-hidden sticky top-24">
-                <div className="p-5 border-b border-warm-100">
-                  <h2 className="font-display font-bold text-warm-900 text-lg">Order Summary</h2>
-                  <p className="text-sm text-warm-400">{items.length} item{items.length !== 1 ? 's' : ''}</p>
-                </div>
-
-                {/* Items */}
-                <div className="divide-y divide-warm-50 max-h-72 overflow-y-auto">
-                  {items.map((item: any) => (
-                    <div key={item.id} className="flex gap-3 p-4 hover:bg-warm-50 group transition-colors">
-                      {item.image_url && (
-                        <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-warm-100">
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-warm-800 text-sm truncate">{item.name}</p>
-                        {item.notes && <p className="text-xs text-warm-400 truncate">{item.notes}</p>}
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <div className="flex items-center gap-1 bg-warm-100 rounded-lg p-0.5">
-                            <button type="button" onClick={() => updateQty(item.id, item.quantity - 1)}
-                              className="w-6 h-6 rounded-md hover:bg-white flex items-center justify-center transition-colors">
-                              <Minus className="w-3 h-3 text-warm-600" />
-                            </button>
-                            <span className="w-5 text-center text-xs font-bold text-warm-800">{item.quantity}</span>
-                            <button type="button" onClick={() => updateQty(item.id, item.quantity + 1)}
-                              className="w-6 h-6 rounded-md hover:bg-white flex items-center justify-center transition-colors">
-                              <Plus className="w-3 h-3 text-warm-600" />
-                            </button>
-                          </div>
-                          <button type="button" onClick={() => removeItem(item.id)}
-                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <span className="font-bold text-warm-800 text-sm shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Totals */}
-                <div className="p-5 border-t border-warm-100 space-y-3">
-                  <div className="flex justify-between text-sm text-warm-500"><span>Subtotal</span><span>${total().toFixed(2)}</span></div>
-                  <div className="flex justify-between text-sm text-warm-500"><span>Tax (8%)</span><span>${tax.toFixed(2)}</span></div>
-                  {form.type === 'delivery' && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-warm-500">Delivery</span>
-                      <span className="text-green-600 font-medium">Free</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold text-warm-900 text-lg pt-2 border-t border-warm-100">
-                    <span>Total</span>
-                    <span className="text-cafe-600">${grandTotal.toFixed(2)}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featured.map((item) => (
+              <div key={item.id}
+                className="group bg-warm-800 rounded-2xl overflow-hidden border border-warm-700/50 hover:border-cafe-500/50 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/30 transition-all duration-300">
+                <div className="relative h-52 overflow-hidden">
+                  {item.image_url
+                    ? <img src={imgWithFallback(item.image_url, item.category_slug)} alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                    onError={(e)=>{const t=e.target as HTMLImageElement;const fb=FALLBACK_IMAGES[item.category_slug];if(fb&&t.src!==fb)t.src=fb;}} />
+                    : <div className="w-full h-full bg-warm-700 flex items-center justify-center text-6xl">{CATEGORY_EMOJI[item.category_slug]||'☕'}</div>
+                  }
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"/>
+                  <div className="absolute top-3 left-3 flex gap-1.5">
+                    {item.is_vegetarian && <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full">Veg</span>}
+                    {item.tags?.includes('bestseller') && <span className="px-2 py-0.5 bg-cafe-500 text-white text-xs font-bold rounded-full">★ Best</span>}
                   </div>
-
-                  <button type="submit" disabled={loading}
-                    className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2 mt-2">
-                    {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Placing Order...
-                      </>
-                    ) : (
-                      <><Lock className="w-4 h-4" /> Place Order · ${grandTotal.toFixed(2)}</>
-                    )}
+                  <button onClick={() => handleAdd(item)}
+                    className="absolute bottom-3 right-3 w-10 h-10 bg-cafe-500 hover:bg-cafe-400 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 active:scale-90 shadow-lg">
+                    <Plus className="w-5 h-5"/>
                   </button>
-                  <p className="text-xs text-warm-400 text-center pt-1">
-                    🔒 Secure & encrypted checkout
-                  </p>
+                </div>
+                <div className="p-5">
+                  <p className="text-cafe-400 text-xs uppercase tracking-widest mb-1">{item.category_name}</p>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-display text-white text-lg font-semibold leading-snug">{item.name}</h3>
+                    <span className="text-cafe-400 font-bold text-lg ml-3 shrink-0">${parseFloat(item.price).toFixed(2)}</span>
+                  </div>
+                  <p className="text-warm-400 text-sm leading-relaxed line-clamp-2 mb-4">{item.description}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-xs text-warm-500">
+                      {parseFloat(item.avg_rating) > 0 && (
+                        <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400"/>{parseFloat(item.avg_rating).toFixed(1)}</span>
+                      )}
+                      {item.prep_time && <span className="flex items-center gap-1"><Clock className="w-3 h-3"/>{item.prep_time}m</span>}
+                    </div>
+                    <button onClick={() => handleAdd(item)} className="text-cafe-400 hover:text-white text-sm font-medium flex items-center gap-1 transition-colors group/btn">
+                      Add <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform"/>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-
+            ))}
           </div>
-        </form>
-      </div>
+
+          <div className="text-center mt-12">
+            <Link href="/menu" className="border-2 border-cafe-500 text-cafe-400 hover:bg-cafe-500 hover:text-white font-semibold py-3.5 px-8 rounded-xl transition-all duration-300 inline-flex items-center gap-2">
+              View Full Menu <ArrowRight className="w-4 h-4"/>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── STORY SECTION ────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 py-28">
+        <div className="grid lg:grid-cols-2 gap-20 items-center">
+          <div>
+            <p className="text-cafe-500 font-semibold uppercase tracking-[4px] text-xs mb-4">Our Story</p>
+            <h2 className="section-title mb-6">More Than Just<br/>a Coffee Shop</h2>
+            <p className="text-warm-500 text-lg leading-relaxed mb-6">
+              We believe coffee is more than a drink — it's a ritual, a pause, a connection. Every bean we source tells a story of the farmer who grew it.
+            </p>
+            <p className="text-warm-400 leading-relaxed mb-10">
+              From our signature espresso blends to freshly baked pastries, everything is made in-house with ingredients we believe in.
+            </p>
+            <div className="grid grid-cols-2 gap-6">
+              {[
+                ['Single-Origin','Beans sourced directly from farms'],
+                ['Made Fresh','Every item baked or brewed daily'],
+                ['Cozy Space','600 sqft of warm, welcoming cafe'],
+                ['Community','Events, music & good vibes'],
+              ].map(([t,d]) => (
+                <div key={t} className="flex gap-3">
+                  <div className="w-1 rounded-full bg-cafe-400 shrink-0 mt-1"/>
+                  <div>
+                    <p className="font-semibold text-warm-800">{t}</p>
+                    <p className="text-warm-400 text-sm mt-0.5">{d}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Image collage — use storyItems which are diverse */}
+          <div className="grid grid-cols-2 gap-3" style={{height:'420px'}}>
+            {storyItems.length > 0
+              ? storyItems.map((item, i) => (
+                  <div key={item.id}
+                    className={`relative rounded-2xl overflow-hidden group ${i===1?'mt-8':''} ${i===3?'-mt-8':''}`}
+                    style={{minHeight:'160px'}}>
+                    <img src={item.image_url} alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                      <span className="text-white text-sm font-semibold">{item.name}</span>
+                    </div>
+                  </div>
+                ))
+              : Array.from({length:4}).map((_,i) => (
+                  <div key={i} className={`rounded-2xl bg-warm-100 animate-pulse ${i===1?'mt-8':''} ${i===3?'-mt-8':''}`} style={{minHeight:'160px'}}/>
+                ))
+            }
+          </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ─────────────────────────────────── */}
+      <section className="bg-cafe-50 border-y border-cafe-100 py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-14">
+            <p className="text-cafe-500 font-semibold uppercase tracking-[4px] text-xs mb-4">Reviews</p>
+            <h2 className="section-title">What Guests Say</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {testimonials.map((t, i) => (
+              <div key={i} className="bg-white rounded-2xl p-7 border border-warm-100 hover:-translate-y-1.5 hover:shadow-lg transition-all duration-300">
+                <div className="flex gap-1 mb-4">
+                  {Array.from({length:t.rating}).map((_,j) => <Star key={j} className="w-4 h-4 fill-yellow-400 text-yellow-400"/>)}
+                </div>
+                <p className="text-warm-600 leading-relaxed mb-6 italic">"{t.text}"</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-cafe-500 rounded-full flex items-center justify-center text-white font-bold">{t.avatar}</div>
+                  <div>
+                    <p className="font-semibold text-warm-800">{t.name}</p>
+                    <p className="text-xs text-warm-400">Regular Guest</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── AMENITIES ────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+          {AMENITIES.map((a, i) => (
+            <div key={i} className="text-center p-6 rounded-2xl bg-white border border-warm-100 hover:-translate-y-1.5 hover:shadow-lg hover:border-cafe-200 transition-all duration-300">
+              <div className="flex items-center justify-center w-14 h-14 bg-cafe-50 rounded-2xl mx-auto mb-4">
+                {a.icon}
+              </div>
+              <p className="font-display font-semibold text-warm-800 mb-1">{a.title}</p>
+              <p className="text-warm-400 text-sm">{a.sub}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── CTA ──────────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-warm-900 py-28">
+        {allItems.find(i => i.image_url) && (
+          <div className="absolute inset-0">
+            <img
+              src={allItems.filter(i=>i.image_url)[10]?.image_url || allItems.find(i=>i.image_url)?.image_url}
+              alt="cafe atmosphere"
+              className="w-full h-full object-cover opacity-15"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-warm-900 via-warm-900/95 to-warm-900/80"/>
+          </div>
+        )}
+        <div className="max-w-2xl mx-auto px-6 text-center relative z-10">
+          <p className="text-cafe-400 font-semibold uppercase tracking-[4px] text-xs mb-4">Reservations</p>
+          <h2 className="font-display text-5xl font-bold text-white mb-6">Reserve Your<br/>Perfect Table</h2>
+          <p className="text-warm-300 text-lg font-light leading-relaxed mb-10">
+            From a quiet solo morning to a special celebration — we'll have everything ready for you.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/reservations" className="btn-primary text-base py-4 px-10 inline-flex items-center gap-2 justify-center">
+              Book a Table <ArrowRight className="w-4 h-4"/>
+            </Link>
+            <Link href="/menu" className="glass text-white font-semibold py-4 px-10 rounded-xl hover:bg-white/15 transition-all inline-flex items-center gap-2 justify-center border border-white/20">
+              <Coffee className="w-4 h-4"/> View Menu
+            </Link>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }
